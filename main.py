@@ -1,11 +1,8 @@
+import pandas as pd
+
 def main():
-    services = [
-        "Diabetes Annual Review", 
-        "Asthma Annual Review", 
-        "Blood Pressure Check", 
-        "Flu vaccination", 
-        "Physiotherapy Initial Assessment"
-    ]
+    df = pd.read_csv("services.csv")
+    services = df["service_name"].tolist()
     print("Available services:")
     print()
     for number, service in enumerate(services, start = 1):
