@@ -1,4 +1,6 @@
 import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 def main():
@@ -6,9 +8,15 @@ def main():
     provider_catalogue = pd.read_csv("provider_services.csv")
     answer_key = pd.read_csv("answer_key.csv")
 
+    evaluate_word_overlap(catalogue, provider_catalogue, answer_key)
+    print()
+    evaluate_tfidf(catalogue, provider_catalogue, answer_key)
+
+
+def evaluate_word_overlap(catalogue, provider_catalogue, answer_key):
     correct_matches = 0
-    
-    for catalogue_index,catalogue_row in catalogue.iterrows():
+
+    for _, catalogue_row in catalogue.iterrows():
         target_name = catalogue_row["service_name"]
         target_id = catalogue_row["service_id"]
         print(f"{target_id}: {target_name}")
@@ -16,9 +24,8 @@ def main():
         best_candidate = None
         correct_row = answer_key[answer_key["target_id"] == target_id]
         correct_provider_id = correct_row["correct_provider_id"].iloc[0]
-        
 
-        for provider_index, provider_row in provider_catalogue.iterrows():
+        for _, provider_row in provider_catalogue.iterrows():
             candidate_name = provider_row["service_name"]
             score = word_overlap_score(target_name, candidate_name)
             if score > best_score:
@@ -40,13 +47,74 @@ def main():
                 print("WRONG")
         print()
 
-    print(f"Accuracy: {correct_matches}/{len(catalogue["service_name"])}")
+    print(f"Accuracy: {correct_matches}/{len(catalogue['service_name'])}")
 
 
 def word_overlap_score(target, candidate):
     target_words = set(target.lower().split())
     candidate_words = set(candidate.lower().split())
     return len(target_words & candidate_words)
+
+
+def evaluate_tfidf(catalogue, provider_catalogue, answer_key):
+    all_service_list = (
+        catalogue["service_name"].tolist()
+        + provider_catalogue["service_name"].tolist()
+    )
+    vectorizer = TfidfVectorizer()
+    matrix = vectorizer.fit_transform(all_service_list)
+    num_targets = len(catalogue)
+    target_matrix = matrix[:num_targets]
+    candidate_matrix = matrix[num_targets:]
+    similarity_matrix = cosine_similarity(target_matrix, candidate_matrix)
+    similarities = pd.DataFrame(
+        similarity_matrix,
+        index=catalogue["service_name"],
+        columns=provider_catalogue["service_name"],
+    )
+    
+    correct_matches = 0
+    for target in similarities.index:
+    
+        best_candidate = similarities.loc[target].idxmax()
+        best_score = similarities.loc[target].max()
+
+        #Finding best_candidate's ID
+        best_candidate_row = provider_catalogue[
+        provider_catalogue["service_name"] == best_candidate
+        ]
+        best_candidate_id = best_candidate_row["service_id"].iloc[0]
+
+
+        #Finding Target service's ID
+        target_row = catalogue[
+        catalogue["service_name"] == target
+        ]
+        target_id = target_row["service_id"].iloc[0]
+
+
+        #Finding correct ID
+        correct_row = answer_key[answer_key["target_id"] == target_id]
+        correct_provider_id = correct_row["correct_provider_id"].iloc[0]
+
+        print(f"{target_id}: {target}")
+    
+        if best_score == 0:
+            print("No match found.")
+            print(f"Correct prediction --> {correct_provider_id}")
+            print("WRONG")
+        else:
+            print(f"Predicted --> {best_candidate_id}: {best_candidate}")
+            print(f"Similarity Score: {best_score:.3f}")
+            print(f"Correct prediction --> {correct_provider_id}")
+            if best_candidate_id == correct_provider_id:
+                print("CORRECT")
+                correct_matches += 1
+            else:
+                print("WRONG")
+        print()
+    print(f"Accuracy: {correct_matches}/{len(catalogue['service_name'])}")
+
 
 
 if __name__ == "__main__":
