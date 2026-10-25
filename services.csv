@@ -2,5 +2,20 @@ service_id,service_name
 S001,Diabetes Annual Review
 S002,Asthma Annual Review
 S003,Blood Pressure Check
-S004,Flu vaccination
+S004,Flu Vaccination
 S005,Physiotherapy Initial Assessment
+S006,ECG Test
+S007,Cervical Screening
+S008,Cholesterol Test
+S009,Smoking Cessation Consultation
+S010,Mental Health Assessment
+S011,Diabetes Medication Review
+S012,Asthma Medication Review
+S013,Travel Vaccination Consultation
+S014,Contraception Consultation
+S015,Childhood Immunisation
+S016,Heart Health Assessment
+S017,Joint Pain Physiotherapy
+S018,Diabetic Eye Screening
+S019,Blood Glucose Test
+S020,Weight Management Consultation
