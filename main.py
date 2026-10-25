@@ -107,31 +107,60 @@ def evaluate_embeddings(catalogue, provider_catalogue, answer_key):
     target_embeddings = model.encode(catalogue["service_name"].tolist())
     candidate_embeddings = model.encode(provider_catalogue["service_name"].tolist())
     similarity_matrix = cosine_similarity(target_embeddings, candidate_embeddings)
-    
-    correct_matches = 0
+
+    ranked_candidate_ids = []
     for target_index, target_similarities in enumerate(similarity_matrix):
-        
         target = catalogue["service_name"].iloc[target_index]
-        target_id = catalogue["service_id"].loc[target_index]
-        correct_provider_id = answer_key["correct_provider_id"].iloc[target_index]
-        
+        target_id = catalogue["service_id"].iloc[target_index]
+        correct_row = answer_key[answer_key["target_id"] == target_id]
+        correct_provider_id = correct_row["correct_provider_id"].iloc[0]
+
         print(f"{target_id}: {target}")
-        top_indices = np.argsort(target_similarities)[-3:][::-1]
+        top_indices = np.argsort(target_similarities)[::-1][:3]
+        target_predictions = []
         for rank, candidate_index in enumerate(top_indices, start=1):
             score = target_similarities[candidate_index]
             candidate = provider_catalogue.iloc[candidate_index]
-            print(f"{rank}. {candidate["service_id"]}:{candidate['service_name']} ({score:.3f})")
-            if rank == 1:
-                best_candidate = candidate["service_name"]
-                best_candidate_id = candidate["service_id"]
+            candidate_id = candidate["service_id"]
+            target_predictions.append(candidate_id)
+            print(
+                f"{rank}. {candidate_id}: {candidate['service_name']} "
+                f"({score:.3f})"
+            )
+
+        ranked_candidate_ids.append(target_predictions)
         print(f"Correct prediction --> {correct_provider_id}")
-        if best_candidate_id == correct_provider_id:
+        if target_predictions and target_predictions[0] == correct_provider_id:
             print("CORRECT")
-            correct_matches += 1
         else:
             print("WRONG")
         print()
-    print(f"Accuracy: {correct_matches}/{len(catalogue['service_name'])}")
+
+    top_1_correct, top_3_correct = calculate_top_k_counts(
+        catalogue, ranked_candidate_ids, answer_key
+    )
+    total_targets = len(catalogue)
+    print(f"Top-1 accuracy: {top_1_correct}/{total_targets}")
+    print(f"Top-3 accuracy: {top_3_correct}/{total_targets}")
+
+
+def calculate_top_k_counts(catalogue, ranked_candidate_ids, answer_key):
+    correct_provider_by_target = answer_key.set_index("target_id")[
+        "correct_provider_id"
+    ]
+    top_1_correct = 0
+    top_3_correct = 0
+
+    for (_, target_row), candidate_ids in zip(
+        catalogue.iterrows(), ranked_candidate_ids
+    ):
+        correct_provider_id = correct_provider_by_target.loc[target_row["service_id"]]
+        if candidate_ids and candidate_ids[0] == correct_provider_id:
+            top_1_correct += 1
+        if correct_provider_id in candidate_ids[:3]:
+            top_3_correct += 1
+
+    return top_1_correct, top_3_correct
 
 
 
